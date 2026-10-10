@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0A0714">
+<title>하트라인 · Heartline</title>
+<style>
+  /* Galmuri: an open-source Korean bitmap font (SIL OFL 1.1), self-hosted in ./fonts */
+  @font-face { font-family: "Galmuri9";  src: url("fonts/Galmuri9.woff2") format("woff2");  font-display: swap; }
+  @font-face { font-family: "Galmuri11"; src: url("fonts/Galmuri11.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+  @font-face { font-family: "Galmuri11"; src: url("fonts/Galmuri11-Bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+
+  :root {
+    /* a neon Seoul street under a sky that follows the clock */
+    --night: #0A0714;
+    --pad: #120C24;
+    --pad-2: #1B1236;
+    --white: #F4F1FF;
+    --magenta: #FF2E88;
+    --cyan: #19F0FF;
+    --yellow: #FFE600;
+    --ink: #0A0714;
+    --dim: #B3A9D9;
+
+    --ui: "Galmuri9", "Galmuri11", "Apple SD Gothic Neo", "Malgun Gothic", monospace;
+    --text: "Galmuri11", "Galmuri9", "Apple SD Gothic Neo", "Malgun Gothic", monospace;
+
+    /* bitmap fonts and the pixel art stay crisp only at whole multiples of their grid */
+    --s9: 18px;    /* 9 x 2 */
+    --s11: 22px;   /* 11 x 2 */
+    --title: 44px; /* 11 x 4 */
+    --px: 3px;     /* one cell of the pixel art */
+  }
+  @media (min-width: 760px) {
+    :root { --s9: 27px; --s11: 33px; --title: 66px; --px: 4px; }
+  }
+
+  * { box-sizing: border-box; }
+  html { background: var(--night); scrollbar-color: var(--magenta) var(--night); }
+  body {
+    margin: 0; min-height: 100vh; min-height: 100dvh;
+    background: var(--night); color: var(--white);
+    font-family: var(--ui); font-size: var(--s9); line-height: 1.5;
+    font-synthesis: none; text-rendering: optimizeSpeed; -webkit-font-smoothing: none;
+    display: flex; flex-direction: column;
+  }
+  ::selection { background: var(--yellow); color: var(--ink); }
+  :focus-visible { outline: 3px dashed var(--yellow); outline-offset: 3px; }
+  h1, p, dl, dd { margin: 0; padding: 0; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  [hidden] { display: none !important; }
+
+  /* the sky follows her local clock: stepped color bands, a sun by day, a moon by night */
+  .sky { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+  .stars { position: absolute; inset: 0; background: var(--stars); background-size: calc(40 * var(--px)) calc(30 * var(--px)); image-rendering: pixelated; opacity: 0; }
+  .horizon { position: relative; z-index: 1; height: calc(48 * var(--px)); overflow: hidden; pointer-events: none; }
+  .orb { position: absolute; image-rendering: pixelated; background-size: 100% 100%; }
+  .orb.sun  { width: calc(13 * var(--px) * 2); height: calc(13 * var(--px) * 2); background-image: var(--sun); }
+  .orb.moon { width: calc(11 * var(--px) * 2); height: calc(11 * var(--px) * 2); background-image: var(--moon); }
+  .shoot { position: absolute; width: calc(12 * var(--px)); height: calc(6 * var(--px)); background: var(--shoot) no-repeat 0 0 / 100% 100%; image-rendering: pixelated; opacity: 0; }
+
+  .hud { position: relative; z-index: 1; background: var(--pad); border-bottom: calc(var(--px)) solid var(--magenta); color: var(--cyan); }
+  .hud > div { width: min(100%, 46rem); margin-inline: auto; padding: 0 0.9rem; display: flex; justify-content: space-between; gap: 1rem; }
+
+  .screen { position: relative; z-index: 1; width: min(100%, 46rem); margin-inline: auto; padding: 0 0.9rem 2rem; flex: 1; }
+
+  /* the neon sign: a chromatic split in one-cell steps */
+  .brand { margin-top: 1.5rem; text-align: center; background: var(--pad); border: calc(var(--px)) solid var(--magenta); padding: 1rem 0.9rem 1.1rem; }
+  .title {
+    margin: 0; font-family: var(--text); font-weight: 700; font-size: var(--title); line-height: 1.2;
+    color: var(--magenta); text-shadow: calc(var(--px) * -1) 0 var(--cyan);
+    animation: power-on 0.9s steps(1) 1;
+  }
+  .latin { margin-top: 0.2rem; font-family: var(--text); color: var(--cyan); letter-spacing: 0.4em; padding-left: 0.4em; }
+  .tubes { margin: 0.9rem auto 0; width: min(100%, 14rem); height: calc(var(--px) * 3); background: linear-gradient(var(--cyan) 0 33.3%, var(--magenta) 33.3% 66.6%, var(--yellow) 66.6%); }
+  .sub { margin-top: 0.9rem; color: var(--dim); }
+
+  .flag { display: inline-block; margin-top: 1.5rem; background: var(--yellow); color: var(--ink); padding: 0 0.7rem; animation: blink 1.2s steps(1) infinite; }
+
+  /* the data pad: dark glass in a pixel frame with magenta corner brackets */
+  .letter {
+    --bw: calc(6 * var(--px));
+    margin-top: 0.9rem; min-width: 0;
+    border: var(--bw) solid var(--cyan);
+    border-image: var(--frame) 6 / var(--bw) round;
+    background: var(--pad); color: var(--white);
+    padding: 0.4rem 0.8rem 1rem;
+    image-rendering: pixelated;
+  }
+  .hdr { display: grid; }
+  .hdr div { display: flex; gap: 1ch; opacity: 0; }
+  .hdr div.on { opacity: 1; }
+  .hdr dt { color: var(--cyan); min-width: 4.5em; flex: none; }
+  .hdr dd { color: var(--white); }
+  .msg {
+    margin-top: 0.9rem; min-height: 5.6em; color: var(--white);
+    font-family: var(--text); font-size: var(--s11); line-height: 1.5;
+    word-break: keep-all; overflow-wrap: anywhere; text-wrap: pretty;
+  }
+  .cursor { display: inline-block; width: 0.55em; height: 0.9em; background: var(--yellow); vertical-align: -0.1em; animation: blink 1s steps(1) infinite; margin-left: 2px; }
+
+  .bye { margin-top: 0.9rem; padding: 1.2rem 0.9rem; min-height: 9em; border: calc(var(--px) * 2) solid var(--magenta); background: var(--pad); text-align: center; }
+  .bye p { font-family: var(--text); font-size: var(--s11); line-height: 1.5; }
+
+  /* controls: pixel buttons, thick on the bottom edge */
+  .menu { margin-top: 1.25rem; display: grid; gap: 0.6rem; }
+  .opt {
+    font: inherit; text-align: left; color: var(--white); background: var(--pad-2);
+    border: 3px solid var(--magenta); border-bottom-width: 6px;
+    min-height: 3rem; padding: 0.2rem 0.8rem; cursor: pointer; touch-action: manipulation;
+    display: flex; gap: 1ch; align-items: center;
+  }
+  .opt b { color: var(--yellow); font-weight: 400; min-width: 2ch; }
+  .opt:hover { background: var(--magenta); color: var(--ink); }
+  .opt:hover b { color: var(--ink); }
+  .opt:active { border-bottom-width: 3px; margin-top: 3px; margin-bottom: -3px; background: var(--cyan); border-color: var(--cyan); color: var(--ink); }
+  .opt:active b { color: var(--ink); }
+  .opt[disabled] { background: var(--pad); border-color: #4A3F73; color: var(--dim); cursor: not-allowed; }
+  .opt[disabled] b { color: var(--dim); }
+  .hint { margin-top: 1.1rem; color: var(--dim); background: var(--pad); border: 3px solid #4A3F73; padding: 0.5rem 0.8rem; }
+
+  .skyline { position: relative; z-index: 1; height: calc(24 * var(--px)); background: var(--skyline) repeat-x left bottom / auto 100%; image-rendering: pixelated; }
+
+  @keyframes blink { 50% { opacity: 0; } }
+  @keyframes power-on { 0%, 22%, 44% { opacity: 0.1; } 11%, 33%, 55%, 100% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) {
+    .flag, .cursor, .title { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="sky" id="sky" aria-hidden="true"><div class="stars" id="stars"></div></div>
+<div class="hud"><div><span id="t-node"></span><span id="clock"></span></div></div>
+<div class="horizon" id="horizon" aria-hidden="true">
+  <div class="orb sun" id="sun" hidden></div>
+  <div class="orb moon" id="moon" hidden></div>
+  <div class="shoot" id="shoot"></div>
+</div>
+<main class="screen">
+  <header class="brand">
+    <h1 class="title">하트라인</h1>
+    <p class="latin" aria-hidden="true">HEARTLINE</p>
+    <div class="tubes" aria-hidden="true"></div>
+    <p class="sub" id="t-sub"></p>
+  </header>
+
+  <p><span class="flag" id="t-mail"></span></p>
+
+  <div id="mailview">
+    <section class="letter" aria-label="Letter">
+      <dl class="hdr" id="hdr">
+        <div><dt id="t-from"></dt><dd id="from"></dd></div>
+        <div><dt id="t-to"></dt><dd id="to"></dd></div>
+        <div><dt id="t-date"></dt><dd id="date"></dd></div>
+        <div><dt id="t-msg"></dt><dd id="count"></dd></div>
+      </dl>
+      <p class="msg" id="msg" aria-hidden="true"></p>
+      <p class="sr" id="live" aria-live="polite"></p>
+    </section>
+  </div>
+
+  <div id="offview" class="bye" hidden>
+    <p id="t-bye"></p>
+  </div>
+
+  <nav class="menu" aria-label="Menu">
+    <button class="opt" id="next" type="button"><b>1</b> <span id="t-next"></span></button>
+    <button class="opt" id="lang" type="button"><b>L</b> <span id="t-lang" lang="en"></span></button>
+    <button class="opt" id="off" type="button"><b>Q</b> <span id="t-off"></span></button>
+  </nav>
+  <p class="hint" id="t-hint"></p>
+</main>
+<div class="skyline" aria-hidden="true"></div>
+
+<script src="affirmations.js"></script>
+<script>
+(function () {
+  var A = window.Affirmations;
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- pixel art, drawn from cell maps ---------- */
+  var PAL = {
+    k: "#0A0714", d: "#1A1030", p: "#2A1F4D",
+    c: "#19F0FF", m: "#FF2E88", y: "#FFE600", q: "#1D7C96",
+    S: "#FFD23F", O: "#FF8A3D", M: "#F4F1FF", N: "#B3A9D9"
+  };
+
+  function svgUri(w, h, cell) {
+    var rects = "";
+    for (var y = 0; y < h; y++) {
+      var x = 0;
+      while (x < w) {
+        var c = cell(x, y);
+        if (!c) { x++; continue; }
+        var x2 = x + 1;
+        while (x2 < w && cell(x2, y) === c) x2++;
+        rects += '<rect x="' + x + '" y="' + y + '" width="' + (x2 - x) + '" height="1" fill="' + PAL[c] + '"/>';
+        x = x2;
+      }
+    }
+    var s = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h +
+      '" shape-rendering="crispEdges">' + rects + "</svg>";
+    return 'url("data:image/svg+xml,' + encodeURIComponent(s) + '")';
+  }
+  var root = document.documentElement.style;
+
+  // sun: a disc with eight single-cell rays (13 x 13)
+  root.setProperty("--sun", svgUri(13, 13, function (x, y) {
+    var d = (x - 6) * (x - 6) + (y - 6) * (y - 6);
+    if (d <= 14) return "S";
+    if (d <= 25) return "O";
+    var rays = [[6, 0], [6, 12], [0, 6], [12, 6], [2, 2], [10, 2], [2, 10], [10, 10]];
+    for (var i = 0; i < rays.length; i++) if (rays[i][0] === x && rays[i][1] === y) return "O";
+    return null;
+  }));
+
+  // moon: a crescent with two craters (11 x 11)
+  root.setProperty("--moon", svgUri(11, 11, function (x, y) {
+    var a = (x - 5) * (x - 5) + (y - 5) * (y - 5), b = (x - 8) * (x - 8) + (y - 3) * (y - 3);
+    if (a > 27 || b <= 20) return null;
+    return ((x === 2 && y === 6) || (x === 3 && y === 8)) ? "N" : "M";
+  }));
+
+  // stars: fixed single cells and two plus-shapes on a 40 x 30 tile
+  var STARS = [[3, 4, "M"], [11, 12, "c"], [17, 2, "M"], [24, 9, "y"], [31, 5, "M"], [36, 17, "M"], [7, 22, "M"], [20, 19, "c"], [28, 26, "M"], [13, 28, "y"], [38, 8, "M"]];
+  var PLUS = [[26, 15], [9, 7]];
+  root.setProperty("--stars", svgUri(40, 30, function (x, y) {
+    for (var i = 0; i < STARS.length; i++) if (STARS[i][0] === x && STARS[i][1] === y) return STARS[i][2];
+    for (var j = 0; j < PLUS.length; j++) {
+      var dx = Math.abs(x - PLUS[j][0]), dy = Math.abs(y - PLUS[j][1]);
+      if (dx + dy === 1 || (dx === 0 && dy === 0)) return "M";
+    }
+    return null;
+  }));
+
+  // shooting star: a stepped trail fading from the head (12 x 6)
+  var TRAIL = [[11, 5, "M"], [10, 5, "M"], [9, 4, "c"], [8, 4, "c"], [7, 3, "c"], [6, 3, "q"], [5, 2, "q"], [4, 2, "q"], [3, 1, "q"], [2, 1, "q"]];
+  root.setProperty("--shoot", svgUri(12, 6, function (x, y) {
+    for (var i = 0; i < TRAIL.length; i++) if (TRAIL[i][0] === x && TRAIL[i][1] === y) return TRAIL[i][2];
+    return null;
+  }));
+
+  // skyline: eight towers on a 64 x 24 tile, lit windows picked by a fixed hash
+  var TOWERS = [[0, 8, 14], [8, 6, 19], [14, 9, 11], [23, 7, 16], [30, 10, 20], [40, 6, 13], [46, 8, 18], [54, 10, 15]];
+  root.setProperty("--skyline", svgUri(64, 24, function (x, y) {
+    for (var i = 0; i < TOWERS.length; i++) {
+      var t = TOWERS[i], x0 = t[0], w = t[1], top = 24 - t[2];
+      if (x < x0 || x >= x0 + w) continue;
+      if (i === 4 && x === 35 && y < top) return y === 0 ? "m" : "p";
+      if (y < top) return null;
+      if (y === top) return "p";
+      var lx = x - x0;
+      if (lx % 2 === 1 && lx < w - 1 && (y - top) % 3 === 1 && y < 22) {
+        var h = (x * 7 + y * 13 + i * 5) % 7;
+        if (h === 0 || h === 1) return "y";
+        if (h === 2) return "c";
+        if (h === 3) return "m";
+      }
+      return "d";
+    }
+    return null;
+  }));
+
+  // data-pad frame: 18 x 18 cells, nine-sliced in CSS (6-cell border)
+  root.setProperty("--frame", svgUri(18, 18, function (X, Y) {
+    var tx = X < 6 ? 0 : X >= 12 ? 2 : 1, ty = Y < 6 ? 0 : Y >= 12 ? 2 : 1;
+    if (tx === 1 && ty === 1) return null;
+    if (tx !== 1 && ty !== 1) {            // corner brackets
+      var u = tx === 0 ? X : 17 - X, v = ty === 0 ? Y : 17 - Y;
+      if (u === 3 && v === 3) return "y";
+      if (u === 0 || v === 0) return "m";
+      if (u === 1 || v === 1) return "c";
+      return null;
+    }
+    var depth = ty === 0 ? Y : ty === 2 ? 17 - Y : tx === 0 ? X : 17 - X;
+    return depth === 0 ? "c" : null;
+  }));
+
+  /* ---------- the sky: color, sun, moon and stars follow the local clock ---------- */
+  var KEYS = [  // hour, six bands from the top of the sky down to the horizon
+    [0,    ["#05030D", "#0A0714", "#120C24", "#1B1236", "#2A1F4D", "#3A2A6B"]],
+    [5,    ["#05030D", "#0A0714", "#120C24", "#1B1236", "#2A1F4D", "#3A2A6B"]],
+    [6.5,  ["#1B1236", "#3A2A6B", "#7A2F8F", "#C93A8F", "#FF6B8A", "#FFB36B"]],
+    [9,    ["#1E3A8A", "#2A52B8", "#3D74D6", "#5A9BE8", "#86C5F2", "#BDE9F7"]],
+    [16,   ["#1E3A8A", "#2A52B8", "#3D74D6", "#5A9BE8", "#86C5F2", "#BDE9F7"]],
+    [18,   ["#2A1F4D", "#5A2A7A", "#A02A7F", "#E6368A", "#FF7A4D", "#FFC24A"]],
+    [20,   ["#05030D", "#0A0714", "#120C24", "#1B1236", "#2A1F4D", "#3A2A6B"]],
+    [24,   ["#05030D", "#0A0714", "#120C24", "#1B1236", "#2A1F4D", "#3A2A6B"]]
+  ];
+  function hex(h) { return [1, 3, 5].map(function (i) { return parseInt(h.substr(i, 2), 16); }); }
+  function mix(a, b, t) {
+    var x = hex(a), y = hex(b);
+    return "rgb(" + x.map(function (v, i) { return Math.round(v + (y[i] - v) * t); }).join(",") + ")";
+  }
+  function bands(h) {
+    var i = 0;
+    while (i < KEYS.length - 2 && h >= KEYS[i + 1][0]) i++;
+    var k0 = KEYS[i], k1 = KEYS[i + 1], t = (h - k0[0]) / (k1[0] - k0[0]);
+    return k0[1].map(function (c, n) { return mix(c, k1[1][n], t); });
+  }
+  function nightness(h) {
+    if (h < 5) return 1;
+    if (h < 7) return (7 - h) / 2;
+    if (h < 18) return 0;
+    if (h < 20) return (h - 18) / 2;
+    return 1;
+  }
+
+  var sky = $("sky"), sun = $("sun"), moon = $("moon"), stars = $("stars"), shoot = $("shoot");
+  var night = 0;
+  var qs = /[?&]hour=([0-9.]+)/.exec(location.search);
+  function hourNow() {
+    if (qs) return Math.min(23.99, parseFloat(qs[1]));  // preview: index.html?hour=21.5
+    var d = new Date();
+    return d.getHours() + d.getMinutes() / 60;
+  }
+  function paintSky() {
+    var h = hourNow(), b = bands(h), step = 100 / b.length, stops = [];
+    b.forEach(function (c, i) { stops.push(c + " " + (i * step) + "% " + ((i + 1) * step) + "%"); });
+    sky.style.background = "linear-gradient(" + stops.join(",") + ")";
+    night = nightness(h);
+    stars.style.opacity = String(night);
+
+    var day = h >= 6 && h < 18;
+    var p = day ? (h - 6) / 12 : (h >= 18 ? (h - 18) / 12 : (h + 6) / 12);
+    var orb = day ? sun : moon;
+    sun.hidden = !day; moon.hidden = day;
+    orb.style.left = (4 + p * 92) + "%";
+    orb.style.top = (100 - 62 * Math.sin(Math.PI * p)) + "%";
+    orb.style.transform = "translate(-50%, -50%)";
+  }
+  paintSky();
+  setInterval(paintSky, 30000);
+
+  /* a shooting star crosses the night sky now and then, at random */
+  function streak() {
+    if (night > 0.6 && !document.hidden && shoot.animate) {
+      var w = window.innerWidth, h = $("horizon").clientHeight;
+      var x = w * (0.05 + Math.random() * 0.5), y = h * (0.05 + Math.random() * 0.3);
+      var px = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--px")) || 3;
+      shoot.animate(
+        [{ transform: "translate(" + x + "px," + y + "px)", opacity: 0 },
+         { transform: "translate(" + (x + 12 * px) + "px," + (y + 6 * px) + "px)", opacity: 1, offset: 0.12 },
+         { transform: "translate(" + (x + 60 * px) + "px," + (y + 30 * px) + "px)", opacity: 1, offset: 0.7 },
+         { transform: "translate(" + (x + 80 * px) + "px," + (y + 40 * px) + "px)", opacity: 0 }],
+        { duration: 900, easing: "linear" });
+    }
+    setTimeout(streak, 12000 + Math.random() * 28000);
+  }
+  if (!reduce) setTimeout(streak, 5000 + Math.random() * 10000);
+
+  /* ---------- text ---------- */
+  var UI = {
+    en: {
+      node: "Line 1", sub: "A private signal, just for you.", mail: "1 new letter",
+      from: "From", to: "To", date: "Date", msg: "No.",
+      next: "Read the next letter", dial: "Dial in again", off: "Log off",
+      langBtn: "한국어",
+      hint: "Press 1 or Enter to read. Press L for Korean. Press any button while a letter is printing to show it at once.",
+      bye: function (n) { return "Goodnight, " + n + ". The line stays open."; },
+      of: " of ", dateOpts: null
+    },
+    ko: {
+      node: "1번 회선", sub: "오직 당신에게만 보내는 신호.", mail: "새 편지 1통",
+      from: "보낸이", to: "받는이", date: "날짜", msg: "번호",
+      next: "다음 편지 읽기", dial: "다시 접속하기", off: "접속 종료",
+      langBtn: "English",
+      hint: "1 또는 Enter를 누르면 편지를 읽어요. L을 누르면 영어로 바뀌어요. 글자가 나오는 중에 누르면 바로 다 보여요.",
+      bye: function (n) { return "잘 자요, " + n + ". 회선은 계속 열려 있어요."; },
+      of: " / ", dateOpts: { year: "numeric", month: "long", day: "numeric" }
+    }
+  };
+
+  var lang = "ko";
+  try { lang = localStorage.getItem("heartline-lang") === "en" ? "en" : "ko"; } catch (e) {}
+
+  var her = A.config.her, herKo = A.config.herKo || A.config.her, him = A.config.him;
+  var current = null, loggedOff = false, typing = false, finish = null, timers = [];
+
+  var msg = $("msg"), live = $("live");
+  var hdrRows = Array.prototype.slice.call(document.querySelectorAll("#hdr div"));
+  var nextBtn = $("next"), langBtn = $("lang"), offBtn = $("off");
+
+  function name() { return lang === "ko" ? herKo : her; }
+  function pad(n) { return String(n).padStart(2, "0"); }
+  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+
+  function labels() {
+    var t = UI[lang];
+    document.documentElement.lang = lang;
+    $("t-node").textContent = t.node;
+    $("t-sub").textContent = t.sub;
+    $("t-mail").textContent = t.mail;
+    $("t-from").textContent = t.from; $("t-to").textContent = t.to;
+    $("t-date").textContent = t.date; $("t-msg").textContent = t.msg;
+    $("from").textContent = him; $("to").textContent = name();
+    $("date").textContent = t.dateOpts
+      ? new Date().toLocaleDateString("ko-KR", t.dateOpts)
+      : new Date().toLocaleDateString("en-CA");
+    $("t-next").textContent = loggedOff ? t.dial : t.next;
+    $("t-off").textContent = t.off;
+    var lb = $("t-lang");
+    lb.textContent = t.langBtn;
+    lb.lang = lang === "ko" ? "en" : "ko";
+    $("t-hint").textContent = t.hint;
+    $("t-bye").textContent = t.bye(name());
+    if (current) $("count").textContent = pad(current.number) + t.of + current.total;
+  }
+
+  var hh = hourNow();
+  $("clock").textContent = pad(Math.floor(hh)) + ":" + pad(Math.floor((hh % 1) * 60));
+
+  /* Print the letter one character at a time. Any press finishes it at once. */
+  function print(text, animate) {
+    clearTimers();
+    var cur = document.createElement("span");
+    cur.className = "cursor";
+    msg.textContent = "";
+    live.textContent = "";
+
+    function done() {
+      clearTimers();
+      hdrRows.forEach(function (r) { r.classList.add("on"); });
+      msg.textContent = text;
+      msg.appendChild(cur);
+      live.lang = lang;
+      live.textContent = text;
+      typing = false; finish = null;
+    }
+    if (!animate || reduce) { done(); return; }
+
+    typing = true; finish = done;
+    hdrRows.forEach(function (r) { r.classList.remove("on"); });
+    hdrRows.forEach(function (r, i) {
+      timers.push(setTimeout(function () { r.classList.add("on"); }, 140 * i));
+    });
+    var chars = Array.from(text), i = 0;
+    msg.appendChild(cur);
+    (function step() {
+      if (i >= chars.length) { done(); return; }
+      cur.insertAdjacentText("beforebegin", chars[i++]);
+      timers.push(setTimeout(step, i === 1 ? 140 * hdrRows.length + 120 : 30));
+    })();
+  }
+
+  function read() {
+    current = A.next();
+    labels();
+    print(current[lang], true);
+  }
+
+  function press() {
+    if (loggedOff) { logon(); return; }
+    if (typing && finish) { finish(); return; }
+    read();
+  }
+  function logoff() {
+    clearTimers(); typing = false; finish = null; loggedOff = true;
+    $("mailview").hidden = true; $("offview").hidden = false;
+    offBtn.disabled = true;
+    labels();
+    nextBtn.focus();
+  }
+  function logon() {
+    loggedOff = false;
+    $("mailview").hidden = false; $("offview").hidden = true;
+    offBtn.disabled = false;
+    read();
+  }
+  function toggleLang() {
+    lang = lang === "en" ? "ko" : "en";
+    try { localStorage.setItem("heartline-lang", lang); } catch (e) {}
+    labels();
+    if (current && !loggedOff) print(current[lang], false);
+  }
+
+  nextBtn.addEventListener("click", press);
+  langBtn.addEventListener("click", toggleLang);
+  offBtn.addEventListener("click", logoff);
+  document.addEventListener("keydown", function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    var onControl = e.target && e.target.closest && e.target.closest("button, a, input, select, textarea");
+    if (e.key === "1" || (e.key === "Enter" && !onControl)) { e.preventDefault(); press(); }
+    else if (e.key === "l" || e.key === "L" || e.key === "ㅣ") { toggleLang(); }
+    else if ((e.key === "q" || e.key === "Q" || e.key === "ㅂ") && !loggedOff) { logoff(); }
+  });
+
+  read();
+})();
+</script>
+</body>
+</html>
